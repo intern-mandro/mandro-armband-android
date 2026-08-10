@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ESP32-S3 USB 기기 필터.
+    VID 0x303A = Espressif Systems
+    PID 0x1001 = ESP32-S3 ROM (DFU / CDC 모드)
+    펌웨어에서 USB VID/PID를 변경했다면 아래 값을 맞춰 수정하세요.
+-->
+<resources>
+    <usb-device vendor-id="12346" product-id="4097" />
+    <!-- 십진수: 0x303A = 12346, 0x1001 = 4097 -->
+</resources>

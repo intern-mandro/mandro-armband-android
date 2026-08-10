@@ -1,0 +1,20 @@
+*.iml
+.gradle
+/local.properties
+/.idea/
+.kotlin/
+.DS_Store
+/build
+app/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Python (Chaquopy)
+__pycache__/
+*.pyc
+
+# JVM crash / replay logs
+replay_pid*.log
+hs_err_pid*.log
