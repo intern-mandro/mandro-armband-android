@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,8 +33,21 @@ fun FirmwareScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // 업데이트가 끝나면 암밴드가 스스로 재부팅해서 연결이 끊김(BleManager 참고).
+    // isBleConnected를 곧바로 보면 "아직 안 끊긴 옛 연결"을 재연결로 착각해 인식
+    // 탭으로 갔다가 뒤늦게 끊김이 감지돼 BLE 탐색 탭으로 다시 튕기는 문제가 있어서,
+    // "실제로 한 번 끊겼다가 재연결됨"이 확인된 isReconnectedAfterUpdate만 본다.
+    LaunchedEffect(uiState.isReconnectedAfterUpdate) {
+        if (uiState.isReconnectedAfterUpdate) {
+            onDone()
+        }
+    }
+
     if (uiState.isDone) {
-        onDone()
+        FirmwareDoneContent(
+            isBleConnected = uiState.isBleConnected,
+            onConnectBand = onConnectBand,
+        )
         return
     }
 
@@ -41,6 +56,70 @@ fun FirmwareScreen(
         onStartUpdate = viewModel::onStartUpdate,
         onConnectBand = onConnectBand,
     )
+}
+
+// 업데이트 완료 화면 — 예전엔 isDone이 되자마자 아무것도 안 그리고 바로
+// onDone()을 호출해서 넘어가버려 "완료됐다"는 문구를 볼 새가 없었음. 이제는 완료
+// 상태를 실제로 렌더링하고, 암밴드 재부팅으로 끊긴 연결을 다시 잡도록 안내함 —
+// 재연결되면 위 LaunchedEffect가 자동으로 다음 화면으로 넘김(버튼 없음).
+@Composable
+private fun FirmwareDoneContent(
+    isBleConnected: Boolean,
+    onConnectBand: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MandroPalette.Neutral50)
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.CheckCircle,
+            contentDescription = null,
+            tint = MandroPalette.Success600,
+            modifier = Modifier.size(56.dp),
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "업데이트가 완료됐어요",
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+            color = MandroPalette.Neutral900,
+        )
+        Spacer(Modifier.height(8.dp))
+        if (isBleConnected) {
+            // 큰 체크 아이콘(완료)과 큰 스피너가 한 화면에 같이 있으면 "다 된 건지
+            // 아직 기다리는 건지" 헷갈려서, 로딩은 이 텍스트 옆에 작게만 붙임 —
+            // "업데이트는 이미 끝났고, 재연결 확인만 남았다"는 걸 명확히 구분.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(
+                    color = MandroPalette.Primary600,
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "암밴드를 찾는 중...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MandroPalette.Neutral500,
+                )
+            }
+        } else {
+            Text(
+                text = "암밴드가 재시작됐어요. 다시 연결해 주세요.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MandroPalette.Neutral500,
+            )
+        }
+        Spacer(Modifier.height(32.dp))
+        if (!isBleConnected) {
+            MandroPrimaryButton(
+                text = "암밴드 연결하기",
+                onClick = onConnectBand,
+            )
+        }
+    }
 }
 
 @Composable
@@ -131,6 +210,18 @@ private fun FirmwareContent(
                     color = MandroPalette.Primary600,
                 )
             }
+        }
+
+        // 에러가 나면 isUpdating은 false로 돌아가고 isDone은 안 되는데(FirmwareViewModel
+        // 참고), 예전엔 이 상태를 화면에 그리는 코드가 아예 없어서 "아무 반응 없이
+        // 조용히 멈춘 것"처럼 보였음.
+        uiState.error?.let { message ->
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MandroPalette.Danger600,
+            )
         }
 
         Spacer(Modifier.weight(1f))

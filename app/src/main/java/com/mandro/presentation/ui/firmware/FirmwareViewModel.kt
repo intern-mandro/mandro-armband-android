@@ -35,10 +35,18 @@ data class FirmwareUiState(
     val isUpdating: Boolean = false,
     val isDone: Boolean = false,
     val isBleConnected: Boolean = false,
+    // 업데이트 완료 후 암밴드가 스스로 재부팅하면서 "한 번 실제로 끊겼다가" 다시
+    // 연결된 게 확인된 경우에만 true. isDone && isBleConnected만 보면, Done
+    // 알림과 실제 연결 끊김 사이의 시차 때문에 "아직 안 끊긴 옛 연결"을 재연결로
+    // 착각해서 곧장 다음 화면으로 넘어갔다가 뒤늦게 끊김이 감지되는 문제가 있었음
+    // (FirmwareViewModel.observePostUpdateReconnect 참고).
+    val isReconnectedAfterUpdate: Boolean = false,
     val error: String? = null,
 ) {
     val allChecked: Boolean get() = checks.all { it.state == CheckState.DONE }
 }
+
+private enum class PostUpdatePhase { NONE, AWAITING_DISCONNECT, AWAITING_RECONNECT, DONE }
 
 @HiltViewModel
 class FirmwareViewModel @Inject constructor(
@@ -58,6 +66,10 @@ class FirmwareViewModel @Inject constructor(
     // onStartUpdate()를 실제로 호출한 뒤부터만 상태 변화에 반응한다.
     private var transferStarted = false
 
+    // 업데이트 완료 후 "실제로 한 번 끊겼다가 다시 연결됨"을 추적하는 상태 —
+    // observeBleState()/observeWeightTransferState() 양쪽에서 갱신.
+    private var postUpdatePhase = PostUpdatePhase.NONE
+
     init {
         observeBleState()
         observeWeightTransferState()
@@ -75,6 +87,17 @@ class FirmwareViewModel @Inject constructor(
                 setCheckState(0, connected)
                 _uiState.update { it.copy(isBleConnected = connected) }
                 updateEnabled()
+
+                when (postUpdatePhase) {
+                    PostUpdatePhase.AWAITING_DISCONNECT -> if (!connected) {
+                        postUpdatePhase = PostUpdatePhase.AWAITING_RECONNECT
+                    }
+                    PostUpdatePhase.AWAITING_RECONNECT -> if (connected) {
+                        postUpdatePhase = PostUpdatePhase.DONE
+                        _uiState.update { it.copy(isReconnectedAfterUpdate = true) }
+                    }
+                    else -> {}
+                }
             }
         }
     }
@@ -89,6 +112,9 @@ class FirmwareViewModel @Inject constructor(
                     }
                     is WeightTransferState.Done -> {
                         _uiState.update { it.copy(isUpdating = false, isDone = true) }
+                        // 암밴드가 곧 스스로 재부팅하며 연결이 끊길 예정 — 그 끊김을
+                        // 실제로 관측한 뒤에만 재연결로 인정하도록 대기 상태로 전환.
+                        postUpdatePhase = PostUpdatePhase.AWAITING_DISCONNECT
                     }
                     is WeightTransferState.Error -> {
                         _uiState.update { it.copy(isUpdating = false, error = state.message) }
