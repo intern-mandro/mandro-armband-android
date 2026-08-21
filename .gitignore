@@ -11,9 +11,12 @@ app/build
 .cxx
 local.properties
 
-# Python (Chaquopy)
+# 설계 문서 및 참고 이미지 (로컬 전용)
+app/docs/
+
+# Python (Chaquopy) 바이트코드 캐시
 __pycache__/
-*.pyc
+*.py[cod]
 
 # JVM crash / replay logs
 replay_pid*.log
