@@ -87,13 +87,13 @@ class MockBleRepository @Inject constructor() : BleRepository {
     }
 
     override suspend fun pairHand(handNamePrefix: String): Result<String> {
-        _handPairingState.value = HandPairingState.InProgress("로봇 의수를 찾는 중...")
+        _handPairingState.value = HandPairingState.InProgress("로봇의수를 찾는 중...")
         delay(500L)
         _handPairingState.value = HandPairingState.InProgress("암밴드에 MAC 등록 중...")
         delay(500L)
         val mac = "00:11:22:AA:BB:CC"
         mockPairedHandMac = mac
-        _handPairingState.value = HandPairingState.Success(mac)
+        _handPairingState.value = HandPairingState.Success(mac, "CHIPSEN")
         return Result.success(mac)
     }
 
