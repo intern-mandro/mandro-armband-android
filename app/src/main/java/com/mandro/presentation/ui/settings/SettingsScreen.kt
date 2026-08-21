@@ -86,13 +86,13 @@ fun SettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 16.dp),
             ) {
                 Text(
-                    text = "로봇 의수 페어링",
+                    text = "로봇의수 페어링",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MandroPalette.Neutral900,
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "암밴드에 로봇 의수의 BLE 주소를 등록해요.",
+                    text = "로봇의수를 암밴드에 등록해요.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MandroPalette.Neutral500,
                 )

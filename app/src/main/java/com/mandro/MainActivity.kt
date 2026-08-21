@@ -147,10 +147,12 @@ class MainActivity : ComponentActivity() {
                             BleScreen(
                                 onBack = { navController.popBackStack() },
                                 onConnected = {
-                                    // Firmware(가중치 재전송 지름길)에서 연결하러 온 거면
-                                    // 다시 Firmware로 돌아감. 그 외(홈/유저생성 등에서 온
-                                    // 최초 연결)에는 기존처럼 파형 화면으로 진행.
-                                    if (navController.previousBackStackEntry?.destination?.route == Screen.Firmware.route) {
+                                    // Firmware(가중치 재전송 지름길)나 HandPairing(암밴드 연결
+                                    // 버튼)에서 연결하러 온 거면 그 화면으로 돌아감. 그 외
+                                    // (홈/유저생성 등에서 온 최초 연결)에는 기존처럼 파형
+                                    // 화면으로 진행.
+                                    val cameFrom = navController.previousBackStackEntry?.destination?.route
+                                    if (cameFrom == Screen.Firmware.route || cameFrom == Screen.HandPairing.route) {
                                         navController.popBackStack()
                                     } else {
                                         navController.navigate(Screen.Waveform.route)
@@ -209,6 +211,9 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.HandPairing.route) {
                             HandPairingScreen(
                                 onBack = { navController.popBackStack() },
+                                onConnectArmband = {
+                                    navController.navigate(Screen.BleScan.route)
+                                },
                             )
                         }
                         composable(Screen.Guide.route) {
