@@ -22,6 +22,7 @@ import com.mandro.presentation.theme.MandroPalette
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onGoHome: () -> Unit = {},
+    onPairHand: () -> Unit = {},
 ) {
     val rawStreamEnabled by viewModel.rawStreamEnabled.collectAsStateWithLifecycle()
 
@@ -67,6 +68,33 @@ fun SettingsScreen(
                     checked = rawStreamEnabled,
                     onCheckedChange = viewModel::onRawStreamEnabledChanged,
                     colors = SwitchDefaults.colors(checkedTrackColor = MandroPalette.Primary600),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Surface(
+            onClick = onPairHand,
+            shape = RoundedCornerShape(16.dp),
+            color = MandroPalette.White,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+            ) {
+                Text(
+                    text = "로봇 의수 페어링",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MandroPalette.Neutral900,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "암밴드에 로봇 의수의 BLE 주소를 등록해요.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MandroPalette.Neutral500,
                 )
             }
         }

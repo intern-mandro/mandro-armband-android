@@ -36,6 +36,7 @@ interface BleRepository {
     val emgStream: Flow<EmgSample>
     val inferenceStream: Flow<InferenceResult>  // BLE Characteristic ...57
     val weightTransferState: Flow<WeightTransferState>  // BLE Characteristic ...58
+    val handPairingState: Flow<HandPairingState>  // BLE Characteristic ...59
 
     suspend fun startScan()
     suspend fun stopScan()
@@ -44,6 +45,16 @@ interface BleRepository {
 
     // weightsBytes: NN 가중치 + StandardScaler(mean/std) 페이로드 (53,304 bytes)
     suspend fun sendWeights(weightsBytes: ByteArray): Result<Unit>
+
+    // 로봇 의수를 스캔 → 연결 → MAC을 암밴드 NVS에 기록 → 검증까지 한 번에 수행.
+    // 암밴드에 이미 연결돼 있어야 함(Settings 탭 진입 조건).
+    suspend fun pairHand(handNamePrefix: String = DEFAULT_HAND_NAME_PREFIX): Result<String>
+
+    // 현재 암밴드 NVS에 저장된 로봇 의수 MAC을 읽음. null이면 아직 페어링 안 됨.
+    suspend fun checkPairedHandMac(): Result<String?>
+
+    // 암밴드 NVS에 저장된 로봇 의수 MAC을 삭제.
+    suspend fun clearPairedHand(): Result<Unit>
 }
 
 interface UsbRepository {

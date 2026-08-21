@@ -36,6 +36,7 @@ import com.mandro.presentation.ui.user.UserScreen
 import com.mandro.presentation.ui.classify.ClassifyScreen
 import com.mandro.presentation.ui.collect.CollectScreen
 import com.mandro.presentation.ui.firmware.FirmwareScreen
+import com.mandro.presentation.ui.settings.HandPairingScreen
 import com.mandro.presentation.ui.settings.SettingsScreen
 import com.mandro.presentation.ui.training.TrainingProgressScreen
 import com.mandro.presentation.ui.waveform.WaveformScreen
@@ -200,6 +201,14 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 },
+                                onPairHand = {
+                                    navController.navigate(Screen.HandPairing.route)
+                                },
+                            )
+                        }
+                        composable(Screen.HandPairing.route) {
+                            HandPairingScreen(
+                                onBack = { navController.popBackStack() },
                             )
                         }
                         composable(Screen.Guide.route) {

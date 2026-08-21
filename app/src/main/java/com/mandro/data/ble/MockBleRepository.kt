@@ -4,6 +4,7 @@ import com.mandro.domain.model.BleDevice
 import com.mandro.domain.model.BleState
 import com.mandro.domain.model.EMG_CHANNELS
 import com.mandro.domain.model.EmgSample
+import com.mandro.domain.model.HandPairingState
 import com.mandro.domain.model.InferenceResult
 import com.mandro.domain.model.WeightTransferState
 import com.mandro.domain.repository.BleRepository
@@ -42,6 +43,11 @@ class MockBleRepository @Inject constructor() : BleRepository {
     private val _weightTransferState = MutableStateFlow<WeightTransferState>(WeightTransferState.Idle)
     override val weightTransferState: Flow<WeightTransferState> = _weightTransferState.asStateFlow()
 
+    private val _handPairingState = MutableStateFlow<HandPairingState>(HandPairingState.Idle)
+    override val handPairingState: Flow<HandPairingState> = _handPairingState.asStateFlow()
+
+    private var mockPairedHandMac: String? = null
+
     private val mockDevices = listOf(
         BleDevice("ESP32S3_FAST_BLE", "00:11:22:33:44:55", -55),
         BleDevice("ESP32S3_FAST_BLE", "00:11:22:33:44:66", -72),
@@ -77,6 +83,24 @@ class MockBleRepository @Inject constructor() : BleRepository {
             _weightTransferState.value = WeightTransferState.Sending(percent)
         }
         _weightTransferState.value = WeightTransferState.Done
+        return Result.success(Unit)
+    }
+
+    override suspend fun pairHand(handNamePrefix: String): Result<String> {
+        _handPairingState.value = HandPairingState.InProgress("로봇 의수를 찾는 중...")
+        delay(500L)
+        _handPairingState.value = HandPairingState.InProgress("암밴드에 MAC 등록 중...")
+        delay(500L)
+        val mac = "00:11:22:AA:BB:CC"
+        mockPairedHandMac = mac
+        _handPairingState.value = HandPairingState.Success(mac)
+        return Result.success(mac)
+    }
+
+    override suspend fun checkPairedHandMac(): Result<String?> = Result.success(mockPairedHandMac)
+
+    override suspend fun clearPairedHand(): Result<Unit> {
+        mockPairedHandMac = null
         return Result.success(Unit)
     }
 

@@ -4,7 +4,9 @@ import com.mandro.core.ble.BleManager
 import com.mandro.data.local.RawStreamPreferences
 import com.mandro.domain.model.BleDevice
 import com.mandro.domain.model.BleState
+import com.mandro.domain.model.DEFAULT_HAND_NAME_PREFIX
 import com.mandro.domain.model.EmgSample
+import com.mandro.domain.model.HandPairingState
 import com.mandro.domain.model.InferenceResult
 import com.mandro.domain.model.WeightTransferState
 import com.mandro.domain.repository.BleRepository
@@ -30,6 +32,7 @@ class BleRepositoryImpl @Inject constructor(
     override val emgStream: Flow<EmgSample> = bleManager.emgStream
     override val inferenceStream: Flow<InferenceResult> = bleManager.inferenceStream
     override val weightTransferState: Flow<WeightTransferState> = bleManager.weightTransferState
+    override val handPairingState: Flow<HandPairingState> = bleManager.handPairingState
 
     init {
         // CCCD는 연결마다(재연결 포함) 초기화되므로, "연결됨" 상태가 될 때마다
@@ -51,4 +54,11 @@ class BleRepositoryImpl @Inject constructor(
     override suspend fun disconnect() = bleManager.disconnect()
     override suspend fun sendWeights(weightsBytes: ByteArray): Result<Unit> =
         bleManager.sendWeights(weightsBytes)
+
+    override suspend fun pairHand(handNamePrefix: String): Result<String> =
+        bleManager.pairHand(handNamePrefix)
+    override suspend fun checkPairedHandMac(): Result<String?> =
+        bleManager.checkPairedHandMac()
+    override suspend fun clearPairedHand(): Result<Unit> =
+        bleManager.clearPairedHand()
 }

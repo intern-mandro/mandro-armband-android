@@ -25,7 +25,7 @@ import kotlin.coroutines.resumeWithException
 
 private const val TAG = "BleManager"
 
-private const val EMG_SERVICE_UUID        = "12345678-1234-1234-1234-1234567890ab"
+internal const val EMG_SERVICE_UUID       = "12345678-1234-1234-1234-1234567890ab"
 private const val EMG_CHARACTERISTIC_UUID = "abcd1234-5678-1234-5678-abcdef123456"  // raw EMG
 private const val INFER_CHARACTERISTIC_UUID = "abcd1234-5678-1234-5678-abcdef123457" // 추론 결과
 // 가중치 수신 (WRITE + NOTIFY) — 신규, 펌웨어에 아직 없음 (Phase 5에서 추가 필요)
@@ -64,6 +64,11 @@ class BleManager @Inject constructor(
 
     private val _weightTransferState = MutableStateFlow<WeightTransferState>(WeightTransferState.Idle)
     val weightTransferState: StateFlow<WeightTransferState> = _weightTransferState.asStateFlow()
+
+    // 로봇 의수 스캔/연결 + 암밴드 PAIR characteristic(NVS 저장) 기록을 담당 —
+    // 별도 파일(HandPairingController)로 분리, 여기서는 위임만 함.
+    private val handPairing = HandPairingController(context, adapter)
+    val handPairingState: StateFlow<com.mandro.domain.model.HandPairingState> = handPairing.state
 
     private var gatt: BluetoothGatt? = null
     private var packetCount = 0
@@ -269,6 +274,31 @@ class BleManager @Inject constructor(
         }
     }
 
+    // ── 로봇 의수 페어링 (BLE) ────────────────────────────────
+    //
+    // 실제 스캔/연결/프로토콜 로직은 HandPairingController가 담당(암밴드 GATT
+    // 콜백은 연결 시점에 한 번만 바인딩되므로 이 클래스가 계속 들고 있어야 하고,
+    // 그 콜백에서 온 PAIR characteristic 이벤트를 handPairing.onXxx()로 전달한다.
+    // 자세한 순서/근거는 HandPairingController의 클래스 주석 참고.
+
+    suspend fun pairHand(handNamePrefix: String): Result<String> {
+        val g = gatt ?: return Result.failure(IllegalStateException("암밴드에 연결되어 있지 않아요."))
+        if (!hasScanPermission() || !hasConnectPermission()) {
+            return Result.failure(SecurityException("블루투스 권한이 필요해요."))
+        }
+        return handPairing.pairHand(g, handNamePrefix)
+    }
+
+    suspend fun checkPairedHandMac(): Result<String?> {
+        val g = gatt ?: return Result.failure(IllegalStateException("암밴드에 연결되어 있지 않아요."))
+        return handPairing.checkPairedHandMac(g)
+    }
+
+    suspend fun clearPairedHand(): Result<Unit> {
+        val g = gatt ?: return Result.failure(IllegalStateException("암밴드에 연결되어 있지 않아요."))
+        return handPairing.clearPairedHand(g)
+    }
+
     // status=133(GATT_ERROR) 같은 안드로이드 BLE 스택의 원인 불명 일시적 오류는
     // 219개 청크를 연속으로 쓰는 동안 종종 발생함 — 널리 알려진 안드로이드 BLE
     // 이슈라 재시도로 완화하는 게 표준적인 대응.
@@ -409,6 +439,11 @@ class BleManager @Inject constructor(
                 return
             }
 
+            if (charUuid.equals(HandPairingController.CHARACTERISTIC_UUID, ignoreCase = true)) {
+                handPairing.onDescriptorWriteResult(status)
+                return
+            }
+
             if (charUuid.equals(EMG_CHARACTERISTIC_UUID, ignoreCase = true) && !emgNotifyDone) {
                 emgNotifyDone = true
                 // raw EMG 구독 완료 → 추론 결과 Characteristic 구독
@@ -448,6 +483,9 @@ class BleManager @Inject constructor(
                         earlyAck = msg
                     }
                 }
+                HandPairingController.CHARACTERISTIC_UUID.lowercase() -> {
+                    handPairing.onCharacteristicChangedResult(bytes)
+                }
             }
         }
 
@@ -456,14 +494,28 @@ class BleManager @Inject constructor(
             characteristic: BluetoothGattCharacteristic,
             status: Int,
         ) {
-            if (!characteristic.uuid.toString().equals(WEIGHT_CHARACTERISTIC_UUID, ignoreCase = true)) return
-            val cont = pendingWrite ?: return
-            pendingWrite = null
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                cont.resume(Unit)
-            } else {
-                cont.resumeWithException(IllegalStateException("BLE 쓰기 실패 (status=$status)"))
+            val uuid = characteristic.uuid.toString()
+            if (uuid.equals(WEIGHT_CHARACTERISTIC_UUID, ignoreCase = true)) {
+                val cont = pendingWrite ?: return
+                pendingWrite = null
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    cont.resume(Unit)
+                } else {
+                    cont.resumeWithException(IllegalStateException("BLE 쓰기 실패 (status=$status)"))
+                }
+            } else if (uuid.equals(HandPairingController.CHARACTERISTIC_UUID, ignoreCase = true)) {
+                handPairing.onCharacteristicWriteResult(status)
             }
+        }
+
+        @Suppress("DEPRECATION")
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int,
+        ) {
+            if (!characteristic.uuid.toString().equals(HandPairingController.CHARACTERISTIC_UUID, ignoreCase = true)) return
+            handPairing.onCharacteristicReadResult(characteristic.value ?: ByteArray(0), status)
         }
     }
 

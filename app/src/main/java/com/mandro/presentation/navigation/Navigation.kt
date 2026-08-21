@@ -11,6 +11,7 @@ sealed class Screen(val route: String) {
     object Training    : Screen("main/training")
     object Classify    : Screen("main/classify")
     object Settings    : Screen("main/settings")
+    object HandPairing : Screen("main/settings/hand-pairing")
 
     // 학습 플로우 (Training 탭 내 스텝)
     object Guide       : Screen("training/guide/{gestureIndex}") {
