@@ -128,7 +128,24 @@ class ClassifyViewModel @Inject constructor(
                         SystemClock.elapsedRealtime() - it >= REST_HYSTERESIS_MS
                     } == true
 
+                // 예전엔 result.confidence(=probabilities.maxOrNull(), 즉 raw_pred의
+                // 확률)가 AMBIGUOUS_CONFIDENCE_THRESHOLD 미만이면 rest로 강제하는
+                // isAmbiguous 판정이 있었는데, className은 펌웨어 다수결(final_pred)
+                // 결과라서 둘이 다른 프레임/다른 클래스를 가리킬 수 있음(펌웨어의
+                // N_VOTE-vote 다수결과 무관하게 이번 프레임 raw 확률만 봄) — className과
+                // 무관한 값으로 rest 여부를 판정하는 게 되어 제거함(2026-08-21).
                 val className = if (forceRest) "rest" else result.className
+
+                // 원본 NN 예측 vs 후처리 최종값을 구분해서 남김 — forceRest로 덮인 건지
+                // logcat으로 바로 구분하기 위함.
+                if (className != result.className) {
+                    Log.d(
+                        "ClassifyInfer",
+                        "덮어씀: 원본=${result.className}(${"%.2f".format(result.confidence)}) " +
+                            "→ 최종=$className " +
+                            "(forceRest=$forceRest)"
+                    )
+                }
 
                 _uiState.update { it.copy(
                     gesture    = className,

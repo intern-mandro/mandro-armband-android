@@ -63,6 +63,18 @@ BLE로 받은 `result.className`을 그대로 쓰지 않고, **raw 신호 세기
 > 판단해서 제거함. 이제 `hasStrongSignal`은 오직 `forceRest` 조건을 막는 용도로만 쓰임 —
 > "강한 신호가 있으면 rest로 강제 덮어쓰지 않는다"까지만 하고, NN이 rest 외의 다른 걸
 > 예측하도록 강제로 바꾸는 로직은 없음.
+>
+> **2026-08-21 변경 (추가됐다가 같은 날 제거됨)**: NN의 1등 클래스 확률이 낮으면
+> (`isAmbiguous`, `AMBIGUOUS_CONFIDENCE_THRESHOLD` 미만) `forceRest`와 별개로 rest로
+> 강제하는 분기를 잠깐 넣었었는데, 곧바로 제거함. 이유: `result.confidence`는
+> `result.probabilities.maxOrNull()`, 즉 **암밴드가 보낸 raw softmax(이번 한 프레임)의
+> 최댓값**인데, `result.className`은 암밴드 펌웨어 쪽 N_VOTE-다수결(최근 5프레임)로
+> 뽑힌 클래스명이라 서로 다른 프레임/다른 클래스를 가리킬 수 있음 — className과 무관한
+> confidence로 그 className의 애매함을 판정하는 게 논리적으로 안 맞아서 뺐다
+> (펌웨어 쪽 `exo_armband_hybrid.ino`의 `getMostFrequent()`/`runInference()` 참고,
+> `pred_msg`가 다수결 classname + raw 프레임 확률을 섞어서 보내는 구조 자체가 원인).
+> 확률 기반 애매함 판정을 다시 넣으려면 펌웨어가 다수결로 뽑힌 클래스의 확률(또는
+> 득표율)을 보내도록 먼저 고쳐야 함.
 
 ```mermaid
 flowchart TD
@@ -137,3 +149,6 @@ flowchart TD
 | `MAX_QUIET_ACTIVE_CHANNELS` | 0 | 활성 채널이 이 개수 이하일 때만 "조용함"으로 침 (2026-07-21부터 0 — 채널 하나라도 뛰면 즉시 리셋) |
 | `REST_HYSTERESIS_MS` | 100ms | 조용한 상태가 이만큼 지속돼야 `forceRest` 발동 |
 | `STRONG_SIGNAL_THRESHOLD` | 0.02 | `ACTIVE_CHANNEL_THRESHOLD`보다 높게 잡아, 노이즈가 아니라 "진짜 근수축"일 때만 `forceRest`를 막음 (2등 확률 대체 로직은 제거됨) |
+
+> `AMBIGUOUS_CONFIDENCE_THRESHOLD`(확률 기반 애매함 판정)는 2026-08-21에 추가됐다가
+> 같은 날 제거됨 — 위 §2 안내 참고.
