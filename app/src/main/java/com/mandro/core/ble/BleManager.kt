@@ -65,7 +65,7 @@ class BleManager @Inject constructor(
     private val _weightTransferState = MutableStateFlow<WeightTransferState>(WeightTransferState.Idle)
     val weightTransferState: StateFlow<WeightTransferState> = _weightTransferState.asStateFlow()
 
-    // 로봇 의수 스캔/연결 + 암밴드 PAIR characteristic(NVS 저장) 기록을 담당 —
+    // 로봇의수 스캔/연결 + 암밴드 PAIR characteristic(NVS 저장) 기록을 담당 —
     // 별도 파일(HandPairingController)로 분리, 여기서는 위임만 함.
     private val handPairing = HandPairingController(context, adapter)
     val handPairingState: StateFlow<com.mandro.domain.model.HandPairingState> = handPairing.state
@@ -185,6 +185,8 @@ class BleManager @Inject constructor(
         }
         gatt = null
         _bleState.value = BleState.Disconnected
+        weightNotifyEnabled = false
+        handPairing.onArmbandDisconnected()
     }
 
     // ── 가중치 전송 (BLE) ─────────────────────────────────────
@@ -274,7 +276,7 @@ class BleManager @Inject constructor(
         }
     }
 
-    // ── 로봇 의수 페어링 (BLE) ────────────────────────────────
+    // ── 로봇의수 페어링 (BLE) ────────────────────────────────
     //
     // 실제 스캔/연결/프로토콜 로직은 HandPairingController가 담당(암밴드 GATT
     // 콜백은 연결 시점에 한 번만 바인딩되므로 이 클래스가 계속 들고 있어야 하고,
@@ -379,6 +381,8 @@ class BleManager @Inject constructor(
                         this@BleManager.gatt?.close()
                         this@BleManager.gatt = null
                         _bleState.value = BleState.Disconnected
+                        weightNotifyEnabled = false
+                        handPairing.onArmbandDisconnected()
                     }
                 }
             } catch (e: SecurityException) {
